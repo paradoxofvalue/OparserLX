@@ -1,0 +1,29 @@
+{
+  "name": "oparserlx",
+  "version": "0.0.1",
+  "description": "parser for OLX",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paradoxofvalue/OparserLX.git"
+  },
+  "keywords": [
+    "parser",
+    "olx"
+  ],
+  "author": "Vadym Lavorchuk",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/paradoxofvalue/OparserLX/issues"
+  },
+  "homepage": "https://github.com/paradoxofvalue/OparserLX#readme",
+  "dependencies": {
+    "osmosis": "^1.1.6",
+    "request": "^2.87.0",
+    "request-promise": "^4.2.2"
+  }
+}
