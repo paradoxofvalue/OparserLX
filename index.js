@@ -6,101 +6,114 @@ const rp = require('request-promise');
 let success = 0,
   fail = 0;
 
-let savedData = [];
+scrapeAds().then(data => console.log(data));
 
-let basePropertyUrl = 'https://www.olx.ua/';
+function scrapeAds(baseUrl) {
+  baseUrl = baseUrl || 'https://www.olx.ua/';
 
-let properties = new osmosis
-  .get(basePropertyUrl)
-  // .config('proxy', '159.224.15.231:8080')
-  .delay(2000)
-  .find('#searchmain-container .maincategories .maincategories-list:nth-child(1) .li:nth-child(2) .item')
-  // .find('#topLink li.visible:nth-child(2)')
-  .follow('a')
-  .find('#topLink li.visible')
-  .follow('a')
-  // .find('#locationLinks .locationlinks')
-  // .follow('a')
-  .delay(2000)
-  .paginate('.pager.rel.clr .fbold.next.abs.large a[href]', 2)
-  .delay(2000)
-  .find('#offers_table td.offer')
-  .follow('a.detailsLink.link')
-  .delay(8000)
-  .set({
-    'title': '#offerdescription .offer-titlebox h1',
-    'price': '#offerbox .price-label strong',
+  return new Promise((resolve, reject) => {
+    let results = [];
+    osmosis
+      .get(baseUrl)
+      .delay(2000)
+      .find('#searchmain-container .maincategories .maincategories-list:nth-child(1) .li:nth-child(2) .item')
+      .follow('a')
+      .delay(2000)
+      // .find('#topLink li.visible')
+      .find('#topLink li.visible:nth-child(1)')
+      .follow('a')
+      .delay(2000)
+      // .paginate('.pager.rel.clr .fbold.next.abs.large a[href]', 2)
+      // .delay(2000)
+      .find('#offers_table td.offer')
+      .follow('a.detailsLink.link')
+      .delay(2000)
+      .set({
+        'title': '#offerdescription .offer-titlebox h1',
+        'price': '#offerbox .price-label strong',
+      })
+      .then((document, data) => {
+        scrapePhone(document, data).then(
+          result => {
+            data.phone = result;
+          },
+          error => {
+            data.phone = false;
+          });
+      })
+      .delay(7000)
+      .data((item) => {
+        if (item.phone) {
+          success++;
+          console.log(success, ' - Success: ', item)
+        } else {
+          fail++;
+          console.log(fail, ' - Fail: ', item);
+        }
+        results.push(item);
+      })
+      .error(console.log)
+      .done(function (attr, attr1, attr2, attr3) {
+        debugger;
+      });
   })
-  .then((document, data) => {
-    if (document.__location.hash == '#from404') {
-      return;
+}
+
+function scrapePhone(document, data) {
+  if (document.__location.hash == '#from404') {
+    return;
+  }
+  let phoneToken = document.body.innerHTML.split("phoneToken")[1].split("'")[1].split("'")[0],
+    urlId = document.location.pathname.split('-ID')[1].split('.')[0],
+    urlTemp = document.location.origin + '/ajax/misc/contact/phone/' + urlId + '/?pt=' + phoneToken,
+    xpid = document.head.innerHTML.split("xpid")[1].split('"')[1].split('"')[0],
+    cookies = '',
+    parsedUrl = url.parse(urlTemp);
+
+  Object.keys(document.cookies).forEach((item, key) => {
+    if (item == 'PHPSESSID') {
+      cookies += item + '=' + document.cookies[item];
     }
-    let phoneToken = document.body.innerHTML.split("phoneToken")[1].split("'")[1].split("'")[0],
-      urlId = document.location.pathname.split('-ID')[1].split('.')[0],
-      urlTemp = document.location.origin + '/ajax/misc/contact/phone/' + urlId + '/?pt=' + phoneToken,
-      xpid = document.head.innerHTML.split("xpid")[1].split('"')[1].split('"')[0];
+  });
 
-    data.id = urlId;
+  data.id = urlId;
 
-    let parsedUrl = url.parse(urlTemp),
-      cookies = '';
-    parsedUrl.uri = urlTemp;
-    parsedUrl.url = urlTemp;
-    Object.keys(document.cookies).forEach((item, key) => {
-      if (item == 'PHPSESSID') {
-        // cookies += item + '=' + document.cookies[item] + '; ';
-        cookies += item + '=' + document.cookies[item];
-      }
-    });
-
-    // cookies = cookies.substring(0, cookies.length - 2);
-
-    parsedUrl.headers = {
-      'Accept': '*/*',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Accept-Language': 'en-GB,en;q=0.9',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Cookie': cookies,
-      'Host': document.__location.host,
-      'Pragma': 'no-cache',
-      'Referer': document.__location.href,
-      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
-      'X-NewRelic-ID': xpid,
-      'X-Requested-With': 'XMLHttpRequest',
-    };
-
+  parsedUrl.uri = urlTemp;
+  parsedUrl.url = urlTemp;
+  parsedUrl.headers = {
+    'Accept': '*/*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-GB,en;q=0.9',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Cookie': cookies,
+    'Host': document.__location.host,
+    'Pragma': 'no-cache',
+    'Referer': document.__location.href,
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
+    'X-NewRelic-ID': xpid,
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  return new Promise((resolve, reject) => {
+    let result;
     rp(parsedUrl, (error, response, body) => {
       if (IsJsonString(body)) {
         let phone = JSON.parse(body).value;
         if (phone != '000 000 000') {
-          data.phone = phone;
+          resolve(phone);
+        } else {
+          reject(phone)
         }
+      } else {
+        reject(error);
       }
     });
   })
-  .delay(1000)
-  .data((data) => {
-    if (data.phone) {
-      success++;
-      console.log(success, ' - Success: ', data)
-    } else {
-      fail++;
-      console.log(fail, ' - Fail: ', data);
-    }
-    savedData.push(data);
-  })
-  .error(console.log)
-  .done(function (attr, attr1, attr2, attr3) {
-    debugger;
-  });
+}
 
-properties.run();
-
-
-function IsJsonString(str) {
+function IsJsonString(string) {
   try {
-    JSON.parse(str);
+    JSON.parse(string);
   } catch (e) {
     return false;
   }
