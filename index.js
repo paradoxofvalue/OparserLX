@@ -1,82 +1,145 @@
-const fs = require('fs');
-const url = require('url');
-const osmosis = require('osmosis');
+var tress = require('tress');
+var needle = require('needle');
+var cheerio = require('cheerio');
+var resolve = require('url').resolve;
+
+const urlModule = require('url');
 const rp = require('request-promise');
 
-let success = 0,
-  fail = 0;
+var fs = require('fs');
+var tunnel = require('tunnel');
 
-scrapeAds().then(data => console.log(data));
 
-function scrapeAds(baseUrl) {
-  baseUrl = baseUrl || 'https://www.olx.ua/';
+var tunelingAgent = tunnel.httpsOverHttp({
+  proxy: { // Proxy settings
+    host: '134.249.185.208', // Defaults to 'localhost'
+    port: '1080', // Defaults to 443
+  }
+});
 
-  return new Promise((resolve, reject) => {
-    let results = [];
-    osmosis
-      .get(baseUrl)
-      .delay(2000)
-      .find('#searchmain-container .maincategories .maincategories-list:nth-child(1) .li:nth-child(2) .item')
-      .follow('a')
-      .delay(2000)
-      // .find('#topLink li.visible')
-      .find('#topLink li.visible:nth-child(1)')
-      .follow('a')
-      .delay(2000)
-      // .paginate('.pager.rel.clr .fbold.next.abs.large a[href]', 2)
-      // .delay(2000)
-      .find('#offers_table td.offer')
-      .follow('a.detailsLink.link')
-      .delay(2000)
-      .set({
-        'title': '#offerdescription .offer-titlebox h1',
-        'price': '#offerbox .price-label strong',
-      })
-      .then((document, data) => {
-        scrapePhone(document, data).then(
-          result => {
-            data.phone = result;
-          },
-          error => {
-            data.phone = false;
-          });
-      })
-      .delay(7000)
-      .data((item) => {
-        if (item.phone) {
-          success++;
-          console.log(success, ' - Success: ', item)
-        } else {
-          fail++;
-          console.log(fail, ' - Fail: ', item);
-        }
-        results.push(item);
-      })
-      .error(console.log)
-      .done(function (attr, attr1, attr2, attr3) {
-        debugger;
-      });
-  })
+
+var startURL = 'https://www.olx.ua/nedvizhimost/zht/';
+var results = [];
+
+var p = tress(performPaginate);
+p.drain = donePaginate;
+
+var q = tress(performAd);
+q.drain = done;
+
+
+start();
+
+let count = 0;
+
+function start() {
+  needle.get(startURL, { agent: tunelingAgent }, function (err, res) {
+    if (err) throw err;
+    console.log(startURL);
+    var $ = cheerio.load(res.body);
+    // get ads from first page
+    $('#offers_table .offer .title-cell a.detailsLink').each(function () {
+      q.push(resolve(url, $(this).attr('href')));
+    });
+    // get pages
+    $('.content .pager .item a').each(function () {
+      if ($(this).text().trim().length < 2) {
+        p.push(resolve(startURL, $(this).attr('href')));
+      }
+    });
+  });
 }
 
-function scrapePhone(document, data) {
-  if (document.__location.hash == '#from404') {
-    return;
-  }
-  let phoneToken = document.body.innerHTML.split("phoneToken")[1].split("'")[1].split("'")[0],
-    urlId = document.location.pathname.split('-ID')[1].split('.')[0],
-    urlTemp = document.location.origin + '/ajax/misc/contact/phone/' + urlId + '/?pt=' + phoneToken,
-    xpid = document.head.innerHTML.split("xpid")[1].split('"')[1].split('"')[0],
-    cookies = '',
-    parsedUrl = url.parse(urlTemp);
+function performPaginate(url, cb) {
+  needle.get(url, { agent: tunelingAgent }, function (err, res) {
+    if (err) throw err;
+    console.log(url);
+    var $ = cheerio.load(res.body);
+    $('#offers_table .offer .title-cell a.detailsLink').each(function () {
+      q.push(resolve(url, $(this).attr('href')));
+    });
+    cb();
+  });
+}
 
-  Object.keys(document.cookies).forEach((item, key) => {
+function performAd(url, cb) {
+  needle.get(url, { agent: tunelingAgent }, function (err, res) {
+    if (err) throw err;
+    var $ = cheerio.load(res.body);
+    console.log(count++, ' ' + url);
+    let title = $('h1').text().trim(),
+      price = $('#offerbox .price-label strong').text().trim(),
+      address = $('#offerdescription .offer-titlebox .show-map-link strong').text().trim(),
+      description = $('#offerdescription #textContent').text().trim(),
+      name = $('#offerbox .offer-sidebar__box .offer-user__details h4 a').text().trim(),
+      attributes = [],
+      images = [];
+
+    $('#offerdescription .descriptioncontent .details .item').each(function (i, elem) {
+      attributes.push({
+        'attr': $(this).find('th').text().trim(),
+        'value': $(this).find('td strong').text().trim()
+      });
+    });
+
+    $('#offerdescription .img-item img').each(function (i, elem) {
+      images.push({
+        'url': $(this).attr('src'),
+        'alt': $(this).attr('alt'),
+      });
+    });
+
+    scrapePhone(res, url).then(
+      result => {
+        phone = result;
+        results.push({
+          'url': url,
+          'title': title,
+          'price': price,
+          'phone': result,
+          'address': address,
+          'description': description,
+          'attributes': attributes,
+          'name': name,
+          'images': images,
+        });
+        cb();
+      },
+      error => {
+        phone = false;
+        cb();
+      });
+  });
+}
+
+function done() {
+  // тут что-то делаем с массивом результатов results
+  // например, выводит в консоль на этапе тестирования
+  debugger;
+  console.log(results);
+}
+
+function donePaginate() {
+  // тут что-то делаем с массивом результатов results
+  // например, выводит в консоль на этапе тестирования
+  debugger;
+  console.log(results);
+}
+
+
+function scrapePhone(res, url) {
+  let phoneToken = res.body.split("phoneToken")[1].split("'")[1].split("'")[0],
+    urlId = url.split('-ID')[1].split('.')[0],
+    urlTemp = 'https://www.olx.ua/ajax/misc/contact/phone/' + urlId + '/?pt=' + phoneToken,
+    xpid = res.body.split("xpid")[1].split('"')[1].split('"')[0],
+    cookies = '',
+    parsedUrl = urlModule.parse(urlTemp);
+
+  Object.keys(res.cookies).forEach((item, key) => {
     if (item == 'PHPSESSID') {
-      cookies += item + '=' + document.cookies[item];
+      cookies += item + '=' + res.cookies[item];
     }
   });
-
-  data.id = urlId;
 
   parsedUrl.uri = urlTemp;
   parsedUrl.url = urlTemp;
@@ -87,13 +150,14 @@ function scrapePhone(document, data) {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Cookie': cookies,
-    'Host': document.__location.host,
+    'Host': "www.olx.ua",
     'Pragma': 'no-cache',
-    'Referer': document.__location.href,
+    'Referer': url,
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
     'X-NewRelic-ID': xpid,
     'X-Requested-With': 'XMLHttpRequest',
   };
+
   return new Promise((resolve, reject) => {
     let result;
     rp(parsedUrl, (error, response, body) => {
@@ -108,8 +172,9 @@ function scrapePhone(document, data) {
         reject(error);
       }
     });
-  })
+  });
 }
+
 
 function IsJsonString(string) {
   try {
