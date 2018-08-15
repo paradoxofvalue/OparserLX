@@ -58,7 +58,8 @@ var q = tress(performAd);
 q.drain = done;
 
 
-let testUrl = 'https://www.olx.ua/obyavlenie/sdam-svoyu-1-komn-saltovka-trk-ukraina-na-dlitelnyy-srok-IDBk3xE.html#80a727ef8d';
+// let testUrl = 'https://www.olx.ua/obyavlenie/sdam-svoyu-1-komn-saltovka-trk-ukraina-na-dlitelnyy-srok-IDBk3xE.html#80a727ef8d';
+let testUrl = '';
 
 
 var db = new sqlite3.Database('database.sqlite');
@@ -265,7 +266,7 @@ let objectAction = [
 
 start();
 
-let count = 0;
+let count = 1;
 
 function start() {
   if (testUrl.length) {
@@ -275,7 +276,7 @@ function start() {
       let url = startURL + item.url + '/';
       needle.get(url, { agent: tunelingAgent }, function (err, res) {
         if (err) throw err;
-        console.log(url);
+        // console.log(url);
         a.push(resolve(startURL, url));
       });
     });
@@ -285,7 +286,7 @@ function start() {
 function performAreas(url, cb) {
   needle.get(url, { agent: tunelingAgent }, function (err, res) {
     if (err) throw err;
-    console.log(url);
+    // console.log(url);
     var $ = cheerio.load(res.body);
     // get ads from first page
     $('#offers_table .offer .title-cell a.detailsLink').each(function () {
@@ -304,7 +305,7 @@ function performAreas(url, cb) {
 function performPaginate(url, cb) {
   needle.get(url, { agent: tunelingAgent }, function (err, res) {
     if (err) throw err;
-    console.log(url);
+    // console.log(url);
     var $ = cheerio.load(res.body);
     $('#offers_table .offer .title-cell a.detailsLink').each(function () {
       q.push(resolve(url, $(this).attr('href')));
@@ -317,14 +318,15 @@ function performAd(url, cb) {
   needle.get(url, { agent: tunelingAgent }, function (err, res) {
     if (err) throw err;
     var $ = cheerio.load(res.body);
-    console.log(count++, ' ' + url);
-    debugger;
+    
+
     let title = $('h1').text().trim(),
       price = $('#offerbox .price-label strong').text().trim(),
       currency = '',
       address = $('#offerdescription .offer-titlebox .show-map-link strong').text().trim(),
       description = $('#offerdescription #textContent').text().trim(),
       name = $('#offerbox .offer-sidebar__box .offer-user__details h4 a').text().trim(),
+      nameImage = $('#offerbox .offer-sidebar__box .offer-user__details img').attr('src'),
       lat = $('#mapcontainer').attr('data-lat'),
       lon = $('#mapcontainer').attr('data-lon'),
       rad = $('#mapcontainer').attr('data-rad'),
@@ -336,16 +338,23 @@ function performAd(url, cb) {
       bargain = false;
 
     /**
+     * description remove тел. 957 - Показать номер -
+     */
+    while (description.includes('- Показать номер -')) {
+      description = description.replace(/- Показать номер -/, '- номер скрыт -');
+    }
+
+    /**
      * price transform
      */
     if (price.includes('грн.')) {
-      currency = 'грн.';
+      currency = 'UAH';
       price = price.split('грн.')[0].trim();
     } else if (price.includes('$')) {
-      currency = '$';
+      currency = 'USD';
       price = price.split('$')[0].trim();
     } else if (price.includes('€')) {
-      currency = '€';
+      currency = 'EUR';
       price = price.split('€')[0].trim();
     }
 
@@ -364,7 +373,7 @@ function performAd(url, cb) {
      */
     $('#offerdescription .img-item img').each(function (i, elem) {
       images.push({
-        'url': $(this).attr('src'),
+        'link': $(this).attr('src'),
         'alt': $(this).attr('alt'),
       });
     });
@@ -389,13 +398,16 @@ function performAd(url, cb) {
     /**
      * objectActionId
      */
-    if (tempCategory.match('долгосрочная аренда')) {
+    if (tempCategory.match(/Долгосрочная аренда/)) {
       objectActionId = 3;
     }
-    if (tempCategory.match('продажа')) {
+    if (tempCategory.match(/Продажа/)) {
       objectActionId = 1;
     }
-    if (tempCategory.match('посуточно')) {
+    if (tempCategory.match(/посуточно/)) {
+      objectActionId = 2;
+    }
+    if (tempCategory.match(/койко/)) {
       objectActionId = 2;
     }
 
@@ -423,7 +435,6 @@ function performAd(url, cb) {
         });
       }
     }
-
 
     /**
      * objectTypeId
@@ -544,6 +555,9 @@ function performAd(url, cb) {
       }
     });
 
+    /**
+     * objectAttributeValues
+     */
     attributes.forEach((item) => {
       switch (item.attr) {
         case 'Этаж': {
@@ -567,14 +581,14 @@ function performAd(url, cb) {
         case 'Общая площадь': {
           if (objectTypeId == 1) {
             objectAttributeValues.push({
-              value: item.value,
+              value: +item.value.split(' ')[0],
               attributeValue: {
                 attributeId: 7
               }
             });
           } else {
             objectAttributeValues.push({
-              value: item.value,
+              value: item.value.split(' ')[0],
               attributeValue: {
                 attributeId: 23
               }
@@ -584,7 +598,7 @@ function performAd(url, cb) {
         }
         case 'Площадь кухни': {
           objectAttributeValues.push({
-            value: item.value,
+            value: item.value.split(' ')[0],
             attributeValue: {
               attributeId: 35
             }
@@ -602,7 +616,7 @@ function performAd(url, cb) {
         }
         case 'Площадь участка': {
           objectAttributeValues.push({
-            value: item.value,
+            value: item.value.split(' ')[0],
             attributeValue: {
               attributeId: 28
             }
@@ -645,7 +659,8 @@ function performAd(url, cb) {
           objectAttributeValues.push({
             value: tempVal,
             attributeValue: {
-              attributeId: 32
+              attributeId: 32,
+              type: 'SELECT'
             }
           });
           break;
@@ -675,7 +690,8 @@ function performAd(url, cb) {
           objectAttributeValues.push({
             value: tempVal,
             attributeValue: {
-              attributeId: 8
+              attributeId: 8,
+              type: 'SELECT'
             }
           });
           break;
@@ -774,7 +790,8 @@ function performAd(url, cb) {
           objectAttributeValues.push({
             value: tempVal,
             attributeValue: {
-              attributeId: tempId
+              attributeId: tempId,
+              type: 'SELECT'
             }
           });
           break;
@@ -843,7 +860,8 @@ function performAd(url, cb) {
           objectAttributeValues.push({
             value: tempVal,
             attributeValue: {
-              attributeId: tempId
+              attributeId: tempId,
+              type: 'SELECT'
             }
           });
           break;
@@ -1165,7 +1183,8 @@ function performAd(url, cb) {
           }
           break;
         }
-        case 'Инфраструктура': {
+        case 'Инфраструктура': 
+        case 'Инфраструктура (до 500 метров)': {
           let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
             valuesArray = item.value.split('\t').join('').split('\n\n');
@@ -1232,12 +1251,21 @@ function performAd(url, cb) {
               attributeId: 27
             }
           });
-          description += '<br>' + item.attr + ': ' + item.value;
         }
         case 'Внешнее утепление стен': {
-          
+          objectAttributeValues.push({
+            value: true,
+            attributeValue: {
+              attributeId: 14
+            }
+          });
         }
-
+        case 'Тип кровли': {
+          description += '<br>' + item.attr + ': ' + item.value;
+        }
+        case 'Расположение': {
+          description += '<br>' + item.attr + ': ' + item.value;
+        }
       }
     });
 
@@ -1256,41 +1284,84 @@ function performAd(url, cb) {
     Object.keys(categoryToType).forEach(cat => {
       categoryToType[cat].forEach(typ => {
         if (typ == objectTypeId) {
-          objectCategoryId = cat;
+          objectCategoryId = +cat;
         }
       });
     });
 
+    if (!isExist && objectTypeId && objectActionId && objectCategoryId) {
 
-    debugger;
-    if (!isExist) {
+      console.log(count++, ' ' + url);
+
       scrapePhone(res, url).then(
         result => {
+          let phone2 = '',
+            phone3 = '';
           phone = result;
-          results.push({
-            'id': urlId,
-            'url': url,
-            'title': title,
-            'price': price,
-            'currency': currency,
-            'phone': result,
-            'address': address,
+          if (result.split('<span class="block">')) {
+            result.split('<span class="block">').join('').split('</span>').forEach((ph, i) => {
+              if (ph.trim()) {
+                switch (i) {
+                  case 0: {
+                    phone = ph.trim();
+                    break;
+                  }
+                  case 1: {
+                    phone2 = ph.trim();
+                    break;
+                  }
+                  case 2: {
+                    phone3 = ph.trim();
+                    break;
+                  }
+                }
+              }
+            })
+          }
+
+          let adObjectToLik = {
             'description': description,
-            'attributes': attributes,
-            'name': name,
-            'lat': lat,
-            'lon': lon,
-            'rad': rad,
+            'price': {
+              'price': price.split(' ').join(''),
+              'currency': currency,
+            },
+            'coordinates': {
+              'lat': lat,
+              'lng': lon,
+            },
+            'title': title,
+            'bargain': bargain,
+            'exclusive': false,
+            'objectType': {
+              'typeId': objectTypeId,
+            },
+            'objectAction': {
+              'actionId': objectActionId,
+            },
+            'category': {
+              'cid': objectCategoryId,
+            },
             'images': images,
-          });
+            'exact': true,
+            'objectAttributeValues': objectAttributeValues,
+            'user': {
+              'name': name,
+              'image': nameImage,
+              'mainPhone': phone,
+              'phone2': phone2,
+              'phone3': phone3,
+            }
+          }
+          results.push(adObjectToLik);
 
           var stmt = db.prepare('INSERT INTO olx VALUES (?, ?, ?)');
           stmt.run(urlId, title, url);
           stmt.finalize();
 
-          saveAd(results[results.length - 1]).then(
+          saveAd(adObjectToLik).then(
             result => {
-              debugger;
+              console.log(result);
+              console.log('Waiting: ', q.waiting.length, q.waiting);
               cb();
             }
           );
@@ -1300,7 +1371,7 @@ function performAd(url, cb) {
           cb();
         });
     } else {
-      debugger;
+      // debugger;
       cb();
     }
   });
@@ -1308,17 +1379,17 @@ function performAd(url, cb) {
 }
 
 function done() {
-  debugger;
+  // debugger;
   console.log(results);
 }
 
 function doneAreas() {
-  debugger;
+  // debugger;
 
 }
 
 function donePaginate() {
-  debugger;
+  // debugger;
 
 }
 
@@ -1382,38 +1453,22 @@ function IsJsonString(string) {
 function saveAd(data) {
   return new Promise((resolve, reject) => {
     let result,
-      url = 'http://www.likmap.org:8070/mobile/add-object',
-      cookies = 'SESSION=c9bc4927-ffe4-4845-89db-0e1047167ee9',
+      url = 'http://www.likimap.com/parsed-add-object',
       // parsedUrl = urlModule.parse(url);
       parsedUrl = {};
     parsedUrl.headers = {
-      'Cookie': cookies,
+      // 'Cookie': cookies,
       'Content-Type': 'application/json',
     };
     parsedUrl.method = 'POST';
     parsedUrl.uri = url;
 
-    parsedUrl.body = {
-      'description': data.description,
-      'price': {
-        'price': data.price,
-        'currency': data.currency,
-      },
-      'coordinates': {
-        'lat': data.lat,
-        'lng': data.lon,
-      },
-      'title': data.title,
-      'bargain': false,
-      'exclusive': false,
-
-    };
-
+    parsedUrl.body = data;
 
     parsedUrl.json = true;
     rp(parsedUrl, (error, response, body) => {
       if (!error && body) {
-        resolve(response);
+        resolve(body);
       } else {
         reject(error);
       }
