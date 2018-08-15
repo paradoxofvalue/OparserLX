@@ -271,15 +271,15 @@ function start() {
   if (testUrl.length) {
     q.push(resolve(startURL, testUrl));
   } else {
-  areas.forEach(item => {
-    let url = startURL + item.url + '/';
-    needle.get(url, { agent: tunelingAgent }, function (err, res) {
-      if (err) throw err;
-      console.log(url);
-      a.push(resolve(startURL, url));
+    areas.forEach(item => {
+      let url = startURL + item.url + '/';
+      needle.get(url, { agent: tunelingAgent }, function (err, res) {
+        if (err) throw err;
+        console.log(url);
+        a.push(resolve(startURL, url));
+      });
     });
-  });
-}
+  }
 }
 
 function performAreas(url, cb) {
@@ -850,7 +850,7 @@ function performAd(url, cb) {
         }
         case 'Меблирование': {
           objectAttributeValues.push({
-            value: item.value,
+            value: true,
             attributeValue: {
               attributeId: 46
             }
@@ -858,7 +858,7 @@ function performAd(url, cb) {
           break;
         }
         case 'Бытовая техника': {
-          let tempDescription = '<br>'+item.attr+': ',
+          let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
             valuesArray = item.value.split('\t').join('').split('\n\n');
           valuesArray.forEach(arrayItem => {
@@ -871,6 +871,8 @@ function performAd(url, cb) {
               case 'Кофемашина':
               case 'Электрочайник':
               case 'Вентилятор, обогреватель':
+              case 'Вентилятор':
+              case 'обогреватель':
               case 'Посудомоечная машина':
               case 'Микроволновая печь':
               case 'Духовой шкаф':
@@ -898,7 +900,7 @@ function performAd(url, cb) {
               }
             }
           })
-          
+
           if (tempValues.length) {
             tempDescription += tempValues.join(', ');
             description += tempDescription;
@@ -906,7 +908,7 @@ function performAd(url, cb) {
           break;
         }
         case 'Мультимедиа': {
-          let tempDescription = '<br>'+item.attr+': ',
+          let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
             valuesArray = item.value.split('\t').join('').split('\n\n');
           valuesArray.forEach(arrayItem => {
@@ -946,7 +948,7 @@ function performAd(url, cb) {
               }
             }
           });
-          
+
           if (tempValues.length) {
             tempDescription += tempValues.join(', ');
             description += tempDescription;
@@ -954,7 +956,7 @@ function performAd(url, cb) {
           break;
         }
         case 'Комфорт': {
-          let tempDescription = '<br>'+item.attr+': ',
+          let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
             valuesArray = item.value.split('\t').join('').split('\n\n');
           valuesArray.forEach(arrayItem => {
@@ -963,19 +965,33 @@ function performAd(url, cb) {
               case 'Ванна':
               case 'Гардероб':
               case 'Хоз. помещение, кладовка':
+              case 'Хоз. помещение':
+              case 'кладовка':
               case 'Гараж':
               case 'Ветровая электро станция':
               case 'Цоколь, подвал':
+              case 'Цоколь':
+              case 'подвал':
               case 'Сад, огород':
+              case 'Сад':
+              case 'огород':
               case 'Баcсейн':
               case 'Сауна, баня':
+              case 'Сауна':
+              case 'баня':
               case 'Спортзал':
               case 'Подсобные помещения':
               case 'Автонавес':
               case 'Беседка, мангал':
+              case 'Беседка':
+              case 'мангал':
+              case 'Гостевой':
               case 'Гостевой, летний дом':
+              case 'летний дом':
               case 'Автоматические ворота':
               case 'Забор, ограждение':
+              case 'ограждение':
+              case 'Забор':
               case 'Автономный электрогенератор':
               case 'Подземный паркинг':
               case 'Гостевой паркинг':
@@ -1023,11 +1039,11 @@ function performAd(url, cb) {
                 });
                 break;
               }
-              case 'Сигнализация': 
-              case 'Консъерж': 
-              case 'Охраняемая территория': 
-              case 'Видеонаблюдение': 
-              case 'Пожарная сигнализация': 
+              case 'Сигнализация':
+              case 'Консъерж':
+              case 'Охраняемая территория':
+              case 'Видеонаблюдение':
+              case 'Пожарная сигнализация':
               case 'Сигнализация': {
                 objectAttributeValues.push({
                   value: true,
@@ -1067,7 +1083,7 @@ function performAd(url, cb) {
               }
             }
           });
-          
+
           if (tempValues.length) {
             tempDescription += tempValues.join(', ');
             description += tempDescription;
@@ -1075,7 +1091,7 @@ function performAd(url, cb) {
           break;
         }
         case 'Коммуникации': {
-          let tempDescription = '<br>'+item.attr+': ',
+          let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
             valuesArray = item.value.split('\t').join('').split('\n\n');
           valuesArray.forEach(arrayItem => {
@@ -1086,92 +1102,140 @@ function performAd(url, cb) {
                 tempValues.push(arrayItem);
                 break;
               }
-              case 'Балкон': {
-                objectAttributeValues.push({
-                  value: 1,
-                  attributeValue: {
-                    attributeId: 25
-                  }
-                });
-                break;
-              }
-              case 'лоджия': {
-                objectAttributeValues.push({
-                  value: 1,
-                  attributeValue: {
-                    attributeId: 25
-                  }
-                });
-                break;
-              }
-              case 'Кондиционер': {
+              case 'Газ': {
                 objectAttributeValues.push({
                   value: true,
                   attributeValue: {
-                    attributeId: 48
+                    attributeId: 44
                   }
                 });
                 break;
               }
-              case 'Терраса': {
-                objectAttributeValues.push({
-                  value: 1,
-                  attributeValue: {
-                    attributeId: 25
-                  }
-                });
-                break;
-              }
-              case 'Сигнализация': 
-              case 'Консъерж': 
-              case 'Охраняемая территория': 
-              case 'Видеонаблюдение': 
-              case 'Пожарная сигнализация': 
-              case 'Сигнализация': {
+              case 'Центральный водопровод': {
                 objectAttributeValues.push({
                   value: true,
                   attributeValue: {
-                    attributeId: 42
+                    attributeId: 49
                   }
                 });
                 break;
               }
-              case 'Лифт':
-              case 'Грузовой лифт': {
+              case 'Скважина': {
                 objectAttributeValues.push({
                   value: true,
                   attributeValue: {
-                    attributeId: 33
+                    attributeId: 49
                   }
                 });
                 break;
               }
-              case 'Технология "умный дом"': {
+              case 'Электричество': {
                 objectAttributeValues.push({
                   value: true,
                   attributeValue: {
-                    attributeId: 18
+                    attributeId: 37
                   }
                 });
                 break;
               }
-              case 'Солнечные электро панели': {
+              case 'Центральная канализация': {
                 objectAttributeValues.push({
                   value: true,
                   attributeValue: {
-                    attributeId: 54
+                    attributeId: 41
+                  }
+                });
+                break;
+              }
+              case 'Канализация септик': {
+                objectAttributeValues.push({
+                  value: true,
+                  attributeValue: {
+                    attributeId: 41
                   }
                 });
                 break;
               }
             }
           });
-          
+
           if (tempValues.length) {
             tempDescription += tempValues.join(', ');
             description += tempDescription;
           }
           break;
+        }
+        case 'Инфраструктура': {
+          let tempDescription = '<br>' + item.attr + ': ',
+            tempValues = [],
+            valuesArray = item.value.split('\t').join('').split('\n\n');
+          valuesArray.forEach(arrayItem => {
+            tempValues.push(arrayItem);
+          });
+
+          if (tempValues.length) {
+            tempDescription += tempValues.join(', ');
+            description += tempDescription;
+          }
+          break;
+        }
+        case 'Ландшафт': {
+          let tempDescription = '<br>' + item.attr + ': ',
+            tempValues = [],
+            valuesArray = item.value.split('\t').join('').split('\n\n');
+          valuesArray.forEach(arrayItem => {
+            tempValues.push(arrayItem);
+          });
+
+          if (tempValues.length) {
+            tempDescription += tempValues.join(', ');
+            description += tempDescription;
+          }
+          break;
+        }
+        case 'Тип гаража': {
+          let tempVal;
+          switch (item.value) {
+            case 'Металлический': {
+              tempVal = 81;
+              break;
+            }
+            case 'Кирпичный': {
+              tempVal = 27;
+              break;
+            }
+            case 'Пеноблок': {
+              tempVal = 560;
+              break;
+            }
+            case 'Бетонный': {
+              tempVal = 24;
+              break;
+            }
+          }
+
+          objectAttributeValues.push({
+            value: tempVal,
+            attributeValue: {
+              attributeId: 77
+            }
+          });
+          break;
+        }
+        case 'Кадастровый номер': {
+          description += '<br>' + item.attr + ': ' + item.value;
+        }
+        case 'Год постройки / сдачи': {
+          objectAttributeValues.push({
+            value: item.value,
+            attributeValue: {
+              attributeId: 27
+            }
+          });
+          description += '<br>' + item.attr + ': ' + item.value;
+        }
+        case 'Внешнее утепление стен': {
+          
         }
 
       }
