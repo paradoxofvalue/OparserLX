@@ -65,6 +65,7 @@ let testUrl = '';
 var db = new sqlite3.Database('database.sqlite');
 db.serialize(() => {
   db.run('create table if not exists olx (id text, title text, url text)');
+  db.run('create table if not exists users (id text, phone text, olxId text)');
 })
 
 let objectAction = [
@@ -318,7 +319,7 @@ function performAd(url, cb) {
   needle.get(url, { agent: tunelingAgent }, function (err, res) {
     if (err) throw err;
     var $ = cheerio.load(res.body);
-    
+
 
     let title = $('h1').text().trim(),
       price = $('#offerbox .price-label strong').text().trim(),
@@ -326,6 +327,7 @@ function performAd(url, cb) {
       address = $('#offerdescription .offer-titlebox .show-map-link strong').text().trim(),
       description = $('#offerdescription #textContent').text().trim(),
       name = $('#offerbox .offer-sidebar__box .offer-user__details h4 a').text().trim(),
+      nameUrl = $('#offerbox .offer-sidebar__box .offer-user__details h4 a').attr('href'),
       nameImage = $('#offerbox .offer-sidebar__box .offer-user__details img').attr('src'),
       lat = $('#mapcontainer').attr('data-lat'),
       lon = $('#mapcontainer').attr('data-lon'),
@@ -337,11 +339,19 @@ function performAd(url, cb) {
       objectAttributeValues = [],
       bargain = false;
 
+
+    /**
+     * olx profile url
+     */
+    if (nameUrl && nameUrl.includes('list/user')) {
+      nameUrl = nameUrl.split('list/user/')[1].replace(/\//, '');
+    }
+
     /**
      * description remove тел. 957 - Показать номер -
      */
     while (description.includes('- Показать номер -')) {
-      description = description.replace(/- Показать номер -/, '- номер скрыт -');
+      description = description.replace(/- Показать номер -/, '- номер в профиле -');
     }
 
     /**
@@ -381,13 +391,20 @@ function performAd(url, cb) {
     /**
      * boolean variable to check if ad already exist in system
      */
-    let isExist = 0;
+    let isExist = 0,
+      isUserExist = 0,
+      userId = '';
 
     /**
      * 
      */
     db.each("select * from olx where id='" + urlId + "'", (err, row) => {
       isExist = 1;
+    });
+
+    db.each("select * from users where olxId='" + nameUrl + "'", (err, row) => {
+      isUserExist = 1;
+      userId = row.id;
     });
 
     let objectActionId = '',
@@ -1183,7 +1200,7 @@ function performAd(url, cb) {
           }
           break;
         }
-        case 'Инфраструктура': 
+        case 'Инфраструктура':
         case 'Инфраструктура (до 500 метров)': {
           let tempDescription = '<br>' + item.attr + ': ',
             tempValues = [],
@@ -1243,6 +1260,7 @@ function performAd(url, cb) {
         }
         case 'Кадастровый номер': {
           description += '<br>' + item.attr + ': ' + item.value;
+          break;
         }
         case 'Год постройки / сдачи': {
           objectAttributeValues.push({
@@ -1251,6 +1269,7 @@ function performAd(url, cb) {
               attributeId: 27
             }
           });
+          break;
         }
         case 'Внешнее утепление стен': {
           objectAttributeValues.push({
@@ -1259,12 +1278,15 @@ function performAd(url, cb) {
               attributeId: 14
             }
           });
+          break;
         }
         case 'Тип кровли': {
           description += '<br>' + item.attr + ': ' + item.value;
+          break;
         }
         case 'Расположение': {
           description += '<br>' + item.attr + ': ' + item.value;
+          break;
         }
       }
     });
@@ -1361,13 +1383,21 @@ function performAd(url, cb) {
           saveAd(adObjectToLik).then(
             result => {
               console.log(result);
-              console.log('Waiting: ', q.waiting.length, q.waiting);
+              console.log('----------');
+              // if (!count%10) {
+              //   console.log('Waiting: ', q.waiting.length, q.waiting);
+              // }
               cb();
             }
-          );
+          ).catch((error) => {
+            cb();
+          });
         },
         error => {
           phone = false;
+          cb();
+        })
+        .catch(error=> {
           cb();
         });
     } else {
@@ -1453,7 +1483,7 @@ function IsJsonString(string) {
 function saveAd(data) {
   return new Promise((resolve, reject) => {
     let result,
-      url = 'http://www.likimap.com/parsed-add-object',
+      url = 'https://www.likimap.com/parsed-add-object',
       // parsedUrl = urlModule.parse(url);
       parsedUrl = {};
     parsedUrl.headers = {
