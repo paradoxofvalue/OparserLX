@@ -12,8 +12,8 @@ var sqlite3 = require('sqlite3').verbose();
 
 var tunelingAgent = tunnel.httpsOverHttp({
   proxy: {
-    host: '134.249.185.208',
-    port: '1080',
+    host: '159.224.65.253',
+    port: '3128',
   }
 });
 
