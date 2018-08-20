@@ -263,7 +263,7 @@ start();
 let count = 1;
 
 function start() {
-  
+  console.log('Launch start()');
   tunelingAgent = tunnel.httpsOverHttp({
     proxy: {
       host: '159.224.65.253',
@@ -1414,6 +1414,7 @@ function performAd(url, cb) {
 
 function done() {
   // debugger;
+  console.log('DONE!!!');
   db.close();
 }
 
