@@ -1383,7 +1383,7 @@ function performAd(url, cb) {
           saveAd(adObjectToLik).then(
             result => {
               console.log(result);
-              console.log('----------');
+              console.log(new Date(), '----------');
               // if (!count%10) {
               //   console.log('Waiting: ', q.waiting.length, q.waiting);
               // }
