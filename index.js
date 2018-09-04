@@ -10,13 +10,59 @@ var fs = require('fs');
 var tunnel = require('tunnel');
 var sqlite3 = require('sqlite3').verbose();
 
-
-
-
-
 var tunelingAgent;
 
-let proxies;
+let proxies = {
+  "data": {
+    "proxies": [
+      {
+        ip: '147.135.210.114',
+        port: '54566',
+      },
+      {
+        ip: '79.120.177.106',
+        port: '8080',
+      },
+      {
+        ip: '42.112.209.164',
+        port: '8080',
+      },
+      {
+        ip: '103.228.117.244',
+        port: '8080',
+      },
+      {
+        ip: '190.145.80.114',
+        port: '3130',
+      },
+      {
+        ip: '159.255.163.189',
+        port: '80',
+      },
+      {
+        ip: '138.185.22.181',
+        port: '53281',
+      },
+      {
+        ip: '84.22.61.46',
+        port: '53281',
+      },
+      {
+        ip: '41.222.57.199',
+        port: '53281',
+      },
+      {
+        ip: '31.182.52.156',
+        port: '3129',
+      },
+      {
+        ip: '13.229.108.9',
+        port: '3128',
+      }
+    ],
+  },
+};
+
 
 let areas = [
   { name: 'Винницкая область', url: 'vin' },
@@ -67,8 +113,7 @@ var p = tress(performPaginate);
 var q = tress(performAd);
 q.drain = done;
 
-
-// let testUrl = 'https://www.olx.ua/obyavlenie/sdam-svoyu-1-komn-saltovka-trk-ukraina-na-dlitelnyy-srok-IDBk3xE.html#80a727ef8d';
+// let testUrl = 'https://www.olx.ua/obyavlenie/2-komn-park-aleksandrii-wifi-tv-IDnMmba.html#d87ad13fbe';
 let testUrl = '';
 
 
@@ -279,33 +324,35 @@ start();
 let count = 1;
 
 function start() {
-  console.log('Launch start()');
+  console.info('Launch start()');
 
-  // if (proxies && proxies.length) {
-    // let currentProxy = proxies.data.pop();
     tunelingAgent = tunnel.httpsOverHttp({
       proxy: {
-        // host: currentProxy.ipAddress,
-        // port: currentProxy.port,
-        host: '147.135.210.114',
-        port: '54566',
+        host: '104.227.96.69',
+        port: '9801',
       }
     });
+
     if (testUrl.length) {
       q.push(resolve(startURL, testUrl));
     } else {
       rubric.forEach(item => {
         let url = startURL + item.url + '/';
-        needle('get', url, { agent: tunelingAgent })
+        needle('get', url, { agent: tunelingAgent,/*proxy: 'http://104.227.96.69:9801'*/ })
           .then((res) => {
             a.push(resolve(startURL, url));
           })
           .catch((err) => {
+            console.error(err);
             start();
           });
       });
     }
   // } else {
+  //   console.log('END...');
+  //   return 0;
+  // }
+  // else {
   //   getProxy().then(
   //     result => {
   //       proxies = result;
@@ -338,7 +385,7 @@ function start() {
 }
 
 function performAreas(url, cb) {
-  needle('get', url, { agent: tunelingAgent })
+  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
     .then((res) => {
       var $ = cheerio.load(res.body);
       // get ads from first page
@@ -359,7 +406,7 @@ function performAreas(url, cb) {
 }
 
 function performPaginate(url, cb) {
-  needle('get', url, { agent: tunelingAgent })
+  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
     .then((res) => {
       var $ = cheerio.load(res.body);
       $('#offers_table .offer .title-cell a.detailsLink').each(function () {
@@ -373,7 +420,7 @@ function performPaginate(url, cb) {
 }
 
 function performAd(url, cb) {
-  needle('get', url, { agent: tunelingAgent })
+  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
     .then((res) => {
       var $ = cheerio.load(res.body);
 
@@ -1563,18 +1610,18 @@ function saveAd(data) {
 
 
 function getProxy() {
-  return new Promise((resolve, reject)=>{
+  return new Promise((resolve, reject) => {
     // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&&apiKey=24Vxeh6z8eLn40n8AtGccOLxtRjK8Ijm&tunnel=1';
     // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=p2UlcEtP4Dcvl8JXEZmywUlyRAWXuH3B&tunnel=1';
     // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=Vix3BeviQRnzV65csVVIbibWf8Tz2roH&tunnel=1';
     let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=XfpH9zGiIHhcwYn16AwGxusuh1FH4YaW&tunnel=1';
-    rp(url, (error, response, body)=>{
+    rp(url, (error, response, body) => {
       if (!error && body) {
         resolve(JSON.parse(body));
       } else {
         reject(error);
       }
     })
-  
+
   })
 }
