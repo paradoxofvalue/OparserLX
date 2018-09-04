@@ -10,7 +10,13 @@ var fs = require('fs');
 var tunnel = require('tunnel');
 var sqlite3 = require('sqlite3').verbose();
 
+
+
+
+
 var tunelingAgent;
+
+let proxies;
 
 let areas = [
   { name: 'Винницкая область', url: 'vin' },
@@ -38,6 +44,16 @@ let areas = [
   { name: 'Черкасская область', url: 'chk' },
   { name: 'Черниговская область', url: 'chn' },
   { name: 'Черновицкая область', url: 'chv' },
+];
+
+let rubric = [
+  { name: 'Квартиры, комнаты', url: 'kvartiry-komnaty', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Посуточная аренда жилья', url: 'posutochno-pochasovo', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Дома', url: 'doma', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Земля', url: 'zemlya', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Коммерческая недвижимость', url: 'kommercheskaya-nedvizhimost', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Гаражи, парковки', url: 'garazhy-parkovki', subrubrics: [{ name: '', url: '', },] },
+  { name: 'Предложения от застройщиков', url: 'predlozheniya-ot-zastroyshchikov', subrubrics: [{ name: '', url: '', },] },
 ];
 
 var startURL = 'https://www.olx.ua/nedvizhimost/';
@@ -264,27 +280,61 @@ let count = 1;
 
 function start() {
   console.log('Launch start()');
-  tunelingAgent = tunnel.httpsOverHttp({
-    proxy: {
-      host: '159.224.65.253',
-      port: '3128',
-    }
-  });
 
-  if (testUrl.length) {
-    q.push(resolve(startURL, testUrl));
-  } else {
-    areas.forEach(item => {
-      let url = startURL + item.url + '/';
-      needle('get', url, { agent: tunelingAgent })
-        .then((res) => {
-          a.push(resolve(startURL, url));
-        })
-        .catch((err) => {
-          debugger;
-        });
+  // if (proxies && proxies.length) {
+    // let currentProxy = proxies.data.pop();
+    tunelingAgent = tunnel.httpsOverHttp({
+      proxy: {
+        // host: currentProxy.ipAddress,
+        // port: currentProxy.port,
+        host: '147.135.210.114',
+        port: '54566',
+      }
     });
-  }
+    if (testUrl.length) {
+      q.push(resolve(startURL, testUrl));
+    } else {
+      rubric.forEach(item => {
+        let url = startURL + item.url + '/';
+        needle('get', url, { agent: tunelingAgent })
+          .then((res) => {
+            a.push(resolve(startURL, url));
+          })
+          .catch((err) => {
+            start();
+          });
+      });
+    }
+  // } else {
+  //   getProxy().then(
+  //     result => {
+  //       proxies = result;
+  //       let currentProxy = proxies.pop();
+  //       tunelingAgent = tunnel.httpsOverHttp({
+  //         proxy: {
+  //           host: currentProxy.ipAddress,
+  //           port: currentProxy.port,
+  //         }
+  //       });
+  //       if (testUrl.length) {
+  //         q.push(resolve(startURL, testUrl));
+  //       } else {
+  //         rubric.forEach(item => {
+  //           let url = startURL + item.url + '/';
+  //           needle('get', url, { agent: tunelingAgent })
+  //             .then((res) => {
+  //               a.push(resolve(startURL, url));
+  //             })
+  //             .catch((err) => {
+  //               start();
+  //             });
+  //         });
+  //       }
+  //     }
+  //   ).catch((error) => {
+  //     debugger
+  //   });
+  // }
 }
 
 function performAreas(url, cb) {
@@ -1409,11 +1459,12 @@ function performAd(url, cb) {
         }
       });
 
-    }).catch((err) => { start(); });
+    }).catch((err) => {
+      start();
+    });
 }
 
 function done() {
-  // debugger;
   console.log('DONE!!!');
   db.close();
 }
@@ -1508,4 +1559,22 @@ function saveAd(data) {
       }
     });
   });
+}
+
+
+function getProxy() {
+  return new Promise((resolve, reject)=>{
+    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&&apiKey=24Vxeh6z8eLn40n8AtGccOLxtRjK8Ijm&tunnel=1';
+    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=p2UlcEtP4Dcvl8JXEZmywUlyRAWXuH3B&tunnel=1';
+    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=Vix3BeviQRnzV65csVVIbibWf8Tz2roH&tunnel=1';
+    let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=XfpH9zGiIHhcwYn16AwGxusuh1FH4YaW&tunnel=1';
+    rp(url, (error, response, body)=>{
+      if (!error && body) {
+        resolve(JSON.parse(body));
+      } else {
+        reject(error);
+      }
+    })
+  
+  })
 }
