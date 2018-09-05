@@ -6,91 +6,15 @@ var resolve = require('url').resolve;
 const urlModule = require('url');
 const rp = require('request-promise');
 
-var fs = require('fs');
 var tunnel = require('tunnel');
 var sqlite3 = require('sqlite3').verbose();
 
-var tunelingAgent;
-
-let proxies = {
-  "data": {
-    "proxies": [
-      {
-        ip: '147.135.210.114',
-        port: '54566',
-      },
-      {
-        ip: '79.120.177.106',
-        port: '8080',
-      },
-      {
-        ip: '42.112.209.164',
-        port: '8080',
-      },
-      {
-        ip: '103.228.117.244',
-        port: '8080',
-      },
-      {
-        ip: '190.145.80.114',
-        port: '3130',
-      },
-      {
-        ip: '159.255.163.189',
-        port: '80',
-      },
-      {
-        ip: '138.185.22.181',
-        port: '53281',
-      },
-      {
-        ip: '84.22.61.46',
-        port: '53281',
-      },
-      {
-        ip: '41.222.57.199',
-        port: '53281',
-      },
-      {
-        ip: '31.182.52.156',
-        port: '3129',
-      },
-      {
-        ip: '13.229.108.9',
-        port: '3128',
-      }
-    ],
-  },
-};
-
-
-let areas = [
-  { name: 'Винницкая область', url: 'vin' },
-  { name: 'Волынская область', url: 'vol' },
-  { name: 'Днепропетровская область', url: 'dnp' },
-  { name: 'Донецкая область', url: 'don' },
-  { name: 'Житомирская область', url: 'zht' },
-  { name: 'Закарпатская область', url: 'zak' },
-  { name: 'Запорожская область', url: 'zap' },
-  { name: 'Ивано-Франковская область', url: 'if' },
-  { name: 'Киевская область', url: 'ko' },
-  { name: 'Кировоградская область', url: 'kir' },
-  { name: 'Крым (АРК)', url: 'cri' },
-  { name: 'Луганская область', url: 'lug' },
-  { name: 'Львовская область', url: 'lv' },
-  { name: 'Николаевская область', url: 'nik' },
-  { name: 'Одесская область', url: 'od' },
-  { name: 'Полтавская область', url: 'pol' },
-  { name: 'Ровенская область', url: 'rov' },
-  { name: 'Сумская область', url: 'sum' },
-  { name: 'Тернопольская область', url: 'ter' },
-  { name: 'Харьковская область', url: 'kha' },
-  { name: 'Херсонская область', url: 'khe' },
-  { name: 'Хмельницкая область', url: 'khm' },
-  { name: 'Черкасская область', url: 'chk' },
-  { name: 'Черниговская область', url: 'chn' },
-  { name: 'Черновицкая область', url: 'chv' },
-];
+var tunelingAgent = tunnel.httpsOverHttp({
+  proxy: {
+    host: '104.227.96.69',
+    port: '9801',
+  }
+});
 
 let rubric = [
   { name: 'Квартиры, комнаты', url: 'kvartiry-komnaty', subrubrics: [{ name: '', url: '', },] },
@@ -105,17 +29,9 @@ let rubric = [
 var startURL = 'https://www.olx.ua/nedvizhimost/';
 
 var a = tress(performAreas);
-// a.drain = doneAreas;
-
 var p = tress(performPaginate);
-// p.drain = donePaginate;
-
 var q = tress(performAd);
 q.drain = done;
-
-// let testUrl = 'https://www.olx.ua/obyavlenie/2-komn-park-aleksandrii-wifi-tv-IDnMmba.html#d87ad13fbe';
-let testUrl = '';
-
 
 var db = new sqlite3.Database('database.sqlite');
 db.serialize(() => {
@@ -322,70 +238,32 @@ let objectAction = [
 start();
 
 let count = 1;
+let errConnCount = 0;
 
 function start() {
   console.info('Launch start()');
 
-    tunelingAgent = tunnel.httpsOverHttp({
-      proxy: {
-        host: '104.227.96.69',
-        port: '9801',
-      }
-    });
-
-    if (testUrl.length) {
-      q.push(resolve(startURL, testUrl));
-    } else {
-      rubric.forEach(item => {
-        let url = startURL + item.url + '/';
-        needle('get', url, { agent: tunelingAgent,/*proxy: 'http://104.227.96.69:9801'*/ })
-          .then((res) => {
-            a.push(resolve(startURL, url));
-          })
-          .catch((err) => {
-            console.error(err);
+  rubric.forEach(item => {
+    let url = startURL + item.url + '/';
+    needle('get', url, { agent: tunelingAgent })
+      .then((res) => {
+        a.push(resolve(startURL, url));
+      })
+      .catch((err) => {
+        console.error(err);
+        errConnCount++;
+        if (errConnCount < 10) {
+          let timeout = setTimeout(()=>{
             start();
-          });
+            clearTimeout(timeout);
+          }, 2000);
+        }
       });
-    }
-  // } else {
-  //   console.log('END...');
-  //   return 0;
-  // }
-  // else {
-  //   getProxy().then(
-  //     result => {
-  //       proxies = result;
-  //       let currentProxy = proxies.pop();
-  //       tunelingAgent = tunnel.httpsOverHttp({
-  //         proxy: {
-  //           host: currentProxy.ipAddress,
-  //           port: currentProxy.port,
-  //         }
-  //       });
-  //       if (testUrl.length) {
-  //         q.push(resolve(startURL, testUrl));
-  //       } else {
-  //         rubric.forEach(item => {
-  //           let url = startURL + item.url + '/';
-  //           needle('get', url, { agent: tunelingAgent })
-  //             .then((res) => {
-  //               a.push(resolve(startURL, url));
-  //             })
-  //             .catch((err) => {
-  //               start();
-  //             });
-  //         });
-  //       }
-  //     }
-  //   ).catch((error) => {
-  //     debugger
-  //   });
-  // }
+  });
 }
 
 function performAreas(url, cb) {
-  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
+  needle('get', url, { agent: tunelingAgent })
     .then((res) => {
       var $ = cheerio.load(res.body);
       // get ads from first page
@@ -401,12 +279,18 @@ function performAreas(url, cb) {
       cb();
     })
     .catch((err) => {
-      start();
+      console.error(err);
+        errConnCount++;
+        if (errConnCount < 10) {
+          let timeout = setTimeout(()=>{
+            start();
+          }, 2000);
+        }
     });
 }
 
 function performPaginate(url, cb) {
-  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
+  needle('get', url, { agent: tunelingAgent })
     .then((res) => {
       var $ = cheerio.load(res.body);
       $('#offers_table .offer .title-cell a.detailsLink').each(function () {
@@ -414,13 +298,19 @@ function performPaginate(url, cb) {
       });
       cb();
     }).catch((err) => {
-      start();
+      console.error(err);
+        errConnCount++;
+        if (errConnCount < 10) {
+          let timeout = setTimeout(()=>{
+            start();
+          }, 2000);
+        }
     });
 
 }
 
 function performAd(url, cb) {
-  needle('get', url, { /*agent: tunelingAgent,*/ proxy: 'http://proxy:1234qwerasdf@5.101.180.90:23' })
+  needle('get', url, { agent: tunelingAgent })
     .then((res) => {
       var $ = cheerio.load(res.body);
 
@@ -1411,7 +1301,8 @@ function performAd(url, cb) {
 
         if (!isExist && objectTypeId && objectActionId && objectCategoryId) {
 
-          console.log(count++, ' ' + url);
+          console.log('--= ', count++, ' =--');
+          console.log(url);
 
           scrapePhone(res, url).then(
             result => {
@@ -1477,17 +1368,29 @@ function performAd(url, cb) {
 
               saveAd(adObjectToLik).then(
                 result => {
-                  console.log(result);
-                  console.log(new Date(), '----------');
-
 
                   var stmt = db.prepare('INSERT INTO olx VALUES (?, ?, ?)');
                   stmt.run(urlId, title, url);
                   stmt.finalize(cb());
 
-                  // if (!count%10) {
-                  //   console.log('Waiting: ', q.waiting.length, q.waiting);
-                  // }
+                  console.log(result);
+                  let date = new Date(),
+                    options = {
+                      // weekday: 'long', 
+                      // year: 'numeric', 
+                      // month: 'long', 
+                      // day: 'numeric',
+                      hour: 'numeric',
+                      minute: 'numeric',
+                      second: 'numeric'
+                    };
+                  console.log(date.toLocaleDateString("ru", options));
+
+                  if (!(count % 10)) {
+                    console.log('Waiting: ', q.waiting.length);
+                  }
+                  console.log('-----------------------------');
+
                 }
               ).catch((error) => {
                 cb();
@@ -1501,13 +1404,18 @@ function performAd(url, cb) {
               cb();
             });
         } else {
-          // debugger;
           cb();
         }
       });
 
     }).catch((err) => {
-      start();
+      console.error(err);
+        errConnCount++;
+        if (errConnCount < 10) {
+          let timeout = setTimeout(()=>{
+            start();
+          }, 2000);
+        }
     });
 }
 
@@ -1516,15 +1424,13 @@ function done() {
   db.close();
 }
 
-function doneAreas() {
-  console.log('doneAreas');
-
-}
-
-function donePaginate() {
-  console.log('donePaginate');
-}
-
+/**
+ * Функция для получения телефона
+ * забирает токен из body и генерирует запрос 
+ * 
+ * @param {*} res - html
+ * @param {*} url - строка 
+ */
 function scrapePhone(res, url) {
   let phoneToken = res.body.split("phoneToken")[1].split("'")[1].split("'")[0],
     urlId = url.split('-ID')[1].split('.')[0],
@@ -1557,29 +1463,19 @@ function scrapePhone(res, url) {
   };
 
   return new Promise((resolve, reject) => {
-    let result;
-    rp(parsedUrl, (error, response, body) => {
-      if (IsJsonString(body)) {
-        let phone = JSON.parse(body).value;
+    needle('get', parsedUrl.url, { agent: tunelingAgent, headers: parsedUrl.headers, })
+      .then((res) => {
+        let phone = res.body.value;
         if (phone != '000 000 000') {
           resolve(phone);
         } else {
-          reject(phone)
+          reject()
         }
-      } else {
-        reject(error);
-      }
-    });
+      })
+      .catch((err) => {
+        reject(err);
+      });
   });
-}
-
-function IsJsonString(string) {
-  try {
-    JSON.parse(string);
-  } catch (e) {
-    return false;
-  }
-  return true;
 }
 
 function saveAd(data) {
@@ -1606,22 +1502,4 @@ function saveAd(data) {
       }
     });
   });
-}
-
-
-function getProxy() {
-  return new Promise((resolve, reject) => {
-    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&&apiKey=24Vxeh6z8eLn40n8AtGccOLxtRjK8Ijm&tunnel=1';
-    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=p2UlcEtP4Dcvl8JXEZmywUlyRAWXuH3B&tunnel=1';
-    // let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=Vix3BeviQRnzV65csVVIbibWf8Tz2roH&tunnel=1';
-    let url = 'https://bitproxies.eu/api/v2/proxies?protocols=http&apiKey=XfpH9zGiIHhcwYn16AwGxusuh1FH4YaW&tunnel=1';
-    rp(url, (error, response, body) => {
-      if (!error && body) {
-        resolve(JSON.parse(body));
-      } else {
-        reject(error);
-      }
-    })
-
-  })
 }
