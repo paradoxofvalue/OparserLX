@@ -9,12 +9,13 @@ const rp = require('request-promise');
 var tunnel = require('tunnel');
 var sqlite3 = require('sqlite3').verbose();
 
-var tunelingAgent = tunnel.httpsOverHttp({
-  proxy: {
-    host: '104.227.96.69',
-    port: '9801',
-  }
-});
+var proxies = [
+  {host:'104.227.96.69',port:'9801'},
+  {host:'185.247.209.15',port:'8000'},
+  {host:'185.247.210.10',port:'8000'},
+];
+
+var tunelingAgent;
 
 let rubric = [
   { name: 'Квартиры, комнаты', url: 'kvartiry-komnaty', subrubrics: [{ name: '', url: '', },] },
@@ -242,7 +243,14 @@ let errConnCount = 0;
 
 function start() {
   console.info('Launch start()');
-
+  const currentProxy = proxies.pop();
+  console.info(currentProxy.host+':'+currentProxy.port);
+  tunelingAgent = tunnel.httpsOverHttp({
+    proxy: {
+      host: currentProxy.host,
+      port: currentProxy.port,
+    }
+  });
   rubric.forEach(item => {
     let url = startURL + item.url + '/';
     needle('get', url, { agent: tunelingAgent })
@@ -252,11 +260,13 @@ function start() {
       .catch((err) => {
         console.error(err);
         errConnCount++;
-        if (errConnCount < 10) {
+        if (errConnCount < 3) {
           let timeout = setTimeout(()=>{
             start();
             clearTimeout(timeout);
           }, 2000);
+        } else {
+          return 0;
         }
       });
   });
