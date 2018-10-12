@@ -273,7 +273,7 @@ function performAd(url, cb) {
       /**
        * 
        */
-      db.each("select * from olx where id='" + urlId + "'", (err, row) => {
+      db.each("select * from olx where id=" + urlId, (err, row) => {
         isExist = 1;
       }, () => {
         let objectActionId = '',
@@ -1435,7 +1435,7 @@ function scrapePhone(res, url) {
   let phoneToken = res.body.split("phoneToken")[1].split("'")[1].split("'")[0],
     urlId = url.split('-ID')[1].split('.')[0],
     urlTemp = 'https://www.olx.ua/ajax/misc/contact/phone/' + urlId + '/?pt=' + phoneToken,
-    xpid = res.body.split("xpid")[1].split('"')[1].split('"')[0],
+    // xpid = res.body.split("xpid")[1].split('"')[1].split('"')[0],
     cookies = '',
     parsedUrl = urlModule.parse(urlTemp);
 
@@ -1458,8 +1458,8 @@ function scrapePhone(res, url) {
     'Pragma': 'no-cache',
     'Referer': url,
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
-    'X-NewRelic-ID': xpid,
-    'X-Requested-With': 'XMLHttpRequest',
+    // 'X-NewRelic-ID': xpid,
+    // 'X-Requested-With': 'XMLHttpRequest',
   };
 
   return new Promise((resolve, reject) => {
