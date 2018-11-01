@@ -9,8 +9,8 @@ const rp = require('request-promise');
 var tunnel = require('tunnel');
 var sqlite3 = require('sqlite3').verbose();
 
-var proxies = [  
-  {
+var proxies = [ 
+   {
     host: '193.228.54.49',
     port: '8000'
   },
